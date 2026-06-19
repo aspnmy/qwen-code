@@ -840,6 +840,7 @@ export class QQChannel extends ChannelBase {
       `[QQ:${this.name}] RC: exhausted ${maxGwRetries} gateway retries, will retry in 60s\n`,
     );
     this.tryResume = false; // fall back to full IDENTIFY next time
+    this.reconnectAttempts++; // #5410: increment after exhausting HTTP retries to avoid infinite loop
     this.isReconnecting = false; // release guard for future retries
     // Schedule another attempt with longer delay
     this.reconnectTimer = setTimeout(() => this.reconnectWithRetry(), 60000);

@@ -2021,6 +2021,27 @@ export class ShellToolInvocation extends BaseToolInvocation<
       };
     }
 
+    // Security guard (#5102): In non-interactive yolo mode, block shell
+    // commands that redirect output to files (>, >>, tee). These bypass
+    // the permission contract by letting the model write arbitrary files
+    // without any user-visible approval step.
+    const approvalMode = this.config.getApprovalMode?.() ?? 'default';
+    if (approvalMode === 'yolo') {
+      const hasRedirect =
+        />[>]?\s*\S/.test(strippedCommand) || /\btee\b/.test(strippedCommand);
+      if (hasRedirect) {
+        return {
+          llmContent:
+            'Shell command was blocked: output redirection (>, >>, tee) is ' +
+            'not allowed in non-interactive yolo mode for security reasons ' +
+            '(#5102). Use write_file tool instead for explicit file writes, ' +
+            'or run in interactive mode for approval.',
+          returnDisplay:
+            'Blocked: output redirection not allowed in yolo non-interactive mode',
+        };
+      }
+    }
+
     if (this.params.is_background) {
       return this.executeBackground(signal, shellExecutionConfig);
     }

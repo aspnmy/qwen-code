@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import os from 'node:os';
 import {
   parseRule,
@@ -2677,5 +2677,46 @@ describe('PermissionManager — compound shell write attribution', () => {
         cwd: '/repo',
       }),
     ).toBe('deny');
+  });
+});
+// ---------------------------------------------------------------------------
+// Fork: nohuman mode approval bypass
+// When QWEN_CODE_NOHUMAN_MODE=1, getDefaultMode() MUST return 'yolo'
+// regardless of the configured approvalMode.
+// ---------------------------------------------------------------------------
+
+describe('PermissionManager — nohuman mode bypass', () => {
+  const OLD_ENV = process.env['QWEN_CODE_NOHUMAN_MODE'];
+
+  afterEach(() => {
+    if (OLD_ENV === undefined) {
+      delete process.env['QWEN_CODE_NOHUMAN_MODE'];
+    } else {
+      process.env['QWEN_CODE_NOHUMAN_MODE'] = OLD_ENV;
+    }
+  });
+
+  it('returns yolo when QWEN_CODE_NOHUMAN_MODE=1 regardless of config', () => {
+    process.env['QWEN_CODE_NOHUMAN_MODE'] = '1';
+    const pm = new PermissionManager(makeConfig({ approvalMode: 'default' }));
+    expect(pm.getDefaultMode()).toBe('yolo');
+  });
+
+  it('returns yolo when QWEN_CODE_NOHUMAN_MODE=1 even if config says plan', () => {
+    process.env['QWEN_CODE_NOHUMAN_MODE'] = '1';
+    const pm = new PermissionManager(makeConfig({ approvalMode: 'plan' }));
+    expect(pm.getDefaultMode()).toBe('yolo');
+  });
+
+  it('respects configured mode when QWEN_CODE_NOHUMAN_MODE is not set', () => {
+    delete process.env['QWEN_CODE_NOHUMAN_MODE'];
+    const pm = new PermissionManager(makeConfig({ approvalMode: 'plan' }));
+    expect(pm.getDefaultMode()).toBe('plan');
+  });
+
+  it('respects configured mode when QWEN_CODE_NOHUMAN_MODE=0', () => {
+    process.env['QWEN_CODE_NOHUMAN_MODE'] = '0';
+    const pm = new PermissionManager(makeConfig({ approvalMode: 'default' }));
+    expect(pm.getDefaultMode()).toBe('default');
   });
 });

@@ -1643,7 +1643,10 @@ export const InputPrompt: React.FC<InputPromptProps> = ({
   // while there is no input area to consume the keystroke.
   useEffect(() => {
     onTabConsumerChange?.(hasTabConsumer);
-    return () => onTabConsumerChange?.(false);
+    // NOTE: cleanup intentionally omitted — calling setState on a parent
+    // context provider during effect cleanup triggers React error #185
+    // ("Cannot update a component while rendering a different component")
+    // when both child and provider unmount in the same commit phase.
   }, [hasTabConsumer, onTabConsumerChange]);
 
   // Trigger prompt suggestion when prop changes

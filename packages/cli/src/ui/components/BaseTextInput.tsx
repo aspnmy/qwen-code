@@ -338,7 +338,9 @@ export const BaseTextInput = ({
     });
     return () => {
       unsub();
-      cursorCtx.setCursorPosition(undefined);
+      // NOTE: cursorCtx.setCursorPosition(undefined) omitted from cleanup —
+      // calling setState on a context provider during effect cleanup triggers
+      // React error #185 when both child and provider unmount together.
     };
   }, [cursorCtx]);
 

@@ -809,7 +809,10 @@ describe('InputPrompt', () => {
       );
       await wait();
 
-      expect(onTabConsumerChange).toHaveBeenLastCalledWith(false);
+      // The effect re-fires with the new hasTabConsumer value (= false
+      // after dismissal). The cleanup no longer emits false (#5199), so
+      // we verify the effect call rather than the last-call position.
+      expect(onTabConsumerChange).toHaveBeenCalledWith(false);
       unmount();
     });
 

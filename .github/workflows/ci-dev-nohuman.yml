@@ -1,8 +1,8 @@
 # .github/workflows/ci-dev-nohuman.yml
 # Dev branch CI — Qwen-NoHuman version line
 # Triggers: push to dev / workflow_dispatch
-# Builds standalone packages for ALL 5 platforms.
-# Creates GitHub Release with artifacts + auto-increment version tag.
+# build-standalone-release.js builds ALL 5 platforms in one run (no --target flag).
+# Single ubuntu-latest job → artifact → GitHub Release.
 
 name: 'Qwen-NoHuman Dev Build & Release'
 
@@ -65,33 +65,9 @@ jobs:
           echo "computed: ${TAG}"
 
   build:
-    name: 'Build ${{ matrix.target }}'
+    name: 'Build & Release'
     needs: 'version'
-    runs-on: '${{ matrix.os }}'
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - target: 'darwin-arm64'
-            node-target: 'darwin-arm64'
-            os: 'macos-latest'
-            ext: 'tar.gz'
-          - target: 'darwin-x64'
-            node-target: 'darwin-x64'
-            os: 'macos-13'
-            ext: 'tar.gz'
-          - target: 'linux-arm64'
-            node-target: 'linux-arm64'
-            os: 'ubuntu-24.04-arm'
-            ext: 'tar.xz'
-          - target: 'linux-x64'
-            node-target: 'linux-x64'
-            os: 'ubuntu-latest'
-            ext: 'tar.xz'
-          - target: 'win-x64'
-            node-target: 'win-x64'
-            os: 'windows-latest'
-            ext: 'zip'
+    runs-on: 'ubuntu-latest'
     env:
       NOHUMAN_VERSION: '${{ needs.version.outputs.version }}'
     steps:
@@ -125,34 +101,20 @@ jobs:
       - name: 'Bundle CLI'
         run: 'npm run bundle'
 
-      - name: 'Build standalone package'
+      - name: 'Build standalone packages (all 5 platforms)'
         run: |
-          node scripts/build-standalone-release.js --target=${{ matrix.node-target }} --version=${{ needs.version.outputs.version }}
+          node scripts/build-standalone-release.js --version=${{ needs.version.outputs.version }}
+          echo "=== Built packages ==="
+          ls -la release/
 
-      - name: 'Upload artifact'
+      - name: 'Upload all artifacts'
         uses: 'actions/upload-artifact@v4'
         with:
-          name: 'qwen-nohuman-${{ matrix.target }}'
-          path: 'release/*.${{ matrix.ext }}'
+          name: 'qwen-nohuman-standalone'
+          path: 'release/*'
           retention-days: 30
 
-  release:
-    name: 'Create GitHub Release'
-    needs: ['version', 'build']
-    if: 'success()'
-    runs-on: 'ubuntu-latest'
-    permissions:
-      contents: 'write'
-    steps:
-      - uses: 'actions/download-artifact@v4'
-        with:
-          path: 'artifacts'
-          merge-multiple: true
-
-      - name: 'List artifacts'
-        run: 'find artifacts/ -type f -ls'
-
-      - name: 'Create Release'
+      - name: 'Create GitHub Release'
         uses: 'softprops/action-gh-release@v2'
         with:
           tag_name: '${{ needs.version.outputs.tag }}'
@@ -184,6 +146,6 @@ jobs:
           draft: false
           prerelease: false
           files: |
-            artifacts/*.tar.gz
-            artifacts/*.tar.xz
-            artifacts/*.zip
+            release/*.tar.gz
+            release/*.tar.xz
+            release/*.zip

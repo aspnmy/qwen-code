@@ -548,10 +548,17 @@ export const MainContent = () => {
   const { height: vpHeaderHeight } = useBoxMetrics(vpHeaderRef);
 
   if (useVirtualScroll) {
-    const scrollContainerHeight = Math.max(
-      0,
-      (uiState.availableTerminalHeight ?? 0) - vpHeaderHeight,
-    );
+    // When useBoxMetrics hasn't completed its initial measurement,
+    // vpHeaderHeight is 0 and availableTerminalHeight may also be 0,
+    // resulting in scrollContainerHeight=0. VirtualizedList treats
+    // containerHeight=0 as "not ready" and renders empty, hiding all
+    // history (#5142). Fall back to a conservative terminal-based
+    // estimate so the viewport is never empty on first paint.
+    const measuredHeight =
+      (uiState.availableTerminalHeight ?? 0) - vpHeaderHeight;
+    const fallbackHeight = Math.max(1, (process.stdout.rows || 24) - 5);
+    const scrollContainerHeight =
+      measuredHeight > 0 ? measuredHeight : fallbackHeight;
 
     return (
       <>

@@ -1,8 +1,8 @@
 # .github/workflows/ci-dev-nohuman.yml
 # Dev branch CI — Qwen-NoHuman version line
 # Triggers: push to dev / workflow_dispatch
-# Builds standalone packages for linux-x64 and win-x64,
-# uploads as artifacts + creates GitHub Release.
+# Builds standalone packages for ALL 5 platforms.
+# Creates GitHub Release with artifacts + auto-increment version tag.
 
 name: 'Qwen-NoHuman Dev Build & Release'
 
@@ -13,7 +13,7 @@ on:
   workflow_dispatch:
     inputs:
       version_bump:
-        description: 'Version bump type (patch/minor/major)'
+        description: 'Version bump (patch/minor/major)'
         required: false
         default: ''
         type: 'string'
@@ -32,7 +32,7 @@ defaults:
 
 jobs:
   version:
-    name: 'Compute NoHuman Version'
+    name: 'Compute Version'
     runs-on: 'ubuntu-latest'
     outputs:
       tag: '${{ steps.compute.outputs.tag }}'
@@ -65,20 +65,32 @@ jobs:
           echo "computed: ${TAG}"
 
   build:
-    name: 'Build (${{ matrix.target }})'
+    name: 'Build ${{ matrix.target }}'
     needs: 'version'
     runs-on: '${{ matrix.os }}'
     strategy:
       fail-fast: false
       matrix:
         include:
-          - target: 'linux-x64'
-            os: 'ubuntu-latest'
-            node-target: 'linux-x64'
+          - target: 'darwin-arm64'
+            node-target: 'darwin-arm64'
+            os: 'macos-latest'
             ext: 'tar.gz'
+          - target: 'darwin-x64'
+            node-target: 'darwin-x64'
+            os: 'macos-13'
+            ext: 'tar.gz'
+          - target: 'linux-arm64'
+            node-target: 'linux-arm64'
+            os: 'ubuntu-24.04-arm'
+            ext: 'tar.xz'
+          - target: 'linux-x64'
+            node-target: 'linux-x64'
+            os: 'ubuntu-latest'
+            ext: 'tar.xz'
           - target: 'win-x64'
-            os: 'windows-latest'
             node-target: 'win-x64'
+            os: 'windows-latest'
             ext: 'zip'
     env:
       NOHUMAN_VERSION: '${{ needs.version.outputs.version }}'
@@ -127,6 +139,7 @@ jobs:
   release:
     name: 'Create GitHub Release'
     needs: ['version', 'build']
+    if: 'success()'
     runs-on: 'ubuntu-latest'
     permissions:
       contents: 'write'
@@ -137,7 +150,7 @@ jobs:
           merge-multiple: true
 
       - name: 'List artifacts'
-        run: 'ls -laR artifacts/'
+        run: 'find artifacts/ -type f -ls'
 
       - name: 'Create Release'
         uses: 'softprops/action-gh-release@v2'
@@ -149,19 +162,21 @@ jobs:
 
             Dev 分支独立版本。基于 [QwenLM/qwen-code](https://github.com/QwenLM/qwen-code) + fork 热补丁。
 
+            ### 下载
+
+            | 平台 | 文件 |
+            |------|------|
+            | macOS Apple Silicon | `qwen-nohuman-darwin-arm64.tar.gz` |
+            | macOS Intel | `qwen-nohuman-darwin-x64.tar.gz` |
+            | Linux ARM64 | `qwen-nohuman-linux-arm64.tar.xz` |
+            | Linux x64 | `qwen-nohuman-linux-x64.tar.xz` |
+            | Windows x64 | `qwen-nohuman-win-x64.zip` |
+
             ### 安装
 
-            **Windows:**
-            ```powershell
-            Expand-Archive qwen-nohuman-win-x64.zip -DestinationPath .\qwen-nohuman
-            .\qwen-nohuman\qwen-code.exe --help
-            ```
-
-            **Linux:**
-            ```bash
-            tar -xzf qwen-nohuman-linux-x64.tar.gz
-            ./qwen-nohuman --help
-            ```
+            **Windows:** `Expand-Archive qwen-nohuman-win-x64.zip; .\qwen-nohuman\qwen-code.exe`
+            **Linux:** `tar -xJf qwen-nohuman-linux-x64.tar.xz; ./qwen-nohuman --help`
+            **macOS:** `tar -xzf qwen-nohuman-darwin-arm64.tar.gz; ./qwen-nohuman --help`
 
             ### 关联
             - Fork: [aspnmy/qwen-code](https://github.com/aspnmy/qwen-code) (dev branch)
@@ -170,4 +185,5 @@ jobs:
           prerelease: false
           files: |
             artifacts/*.tar.gz
+            artifacts/*.tar.xz
             artifacts/*.zip

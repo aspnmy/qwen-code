@@ -514,6 +514,16 @@ export class ShellExecutionService {
 
     // Cleanup child processes
     strategy.killChildProcesses(this.activeChildProcesses);
+    // #5083: Log any remaining tracked children — these may be zombies
+    // that couldn't be killed. In long sessions (>10h), unreaped
+    // children can accumulate and cause TUI freezes.
+    if (this.activeChildProcesses.size > 0) {
+      debugLogger.warn(
+        `cleanup: ${this.activeChildProcesses.size} child process(es) ` +
+          `could not be killed — possible zombies: ` +
+          `${[...this.activeChildProcesses].join(', ')}`,
+      );
+    }
   }
 
   static {
@@ -1200,6 +1210,14 @@ export class ShellExecutionService {
               stderr += remaining;
             }
           }
+
+          // #5083: Explicitly destroy stdout/stderr streams so the
+          // event loop is not blocked by unclosed pipe handles. In
+          // long-running sessions (>10h), accumulated pipe handles
+          // from exited children can starve the event loop and cause
+          // TUI freezes even though the child process is reaped.
+          child.stdout?.destroy();
+          child.stderr?.destroy();
 
           const finalBuffer = Buffer.concat(outputChunks);
 

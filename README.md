@@ -1,157 +1,107 @@
-<div align="center">
+# Qwen-NoHuman — Qwen Code Dev 分支独立维护版
 
-[![npm version](https://img.shields.io/npm/v/@qwen-code/qwen-code.svg)](https://www.npmjs.com/package/@qwen-code/qwen-code)
+> 基于 [QwenLM/qwen-code](https://github.com/QwenLM/qwen-code) 的 fork 维护分支。
+> 独立版本线：**Qwen-NoHuman v0.0.1**
+
 [![License](https://img.shields.io/github/license/QwenLM/qwen-code.svg)](./LICENSE)
 [![Node.js Version](https://img.shields.io/badge/node-%3E%3D22.0.0-brightgreen.svg)](https://nodejs.org/)
-[![Downloads](https://img.shields.io/npm/dm/@qwen-code/qwen-code.svg)](https://www.npmjs.com/package/@qwen-code/qwen-code)
 
-<a href="https://trendshift.io/repositories/15287" target="_blank"><img src="https://trendshift.io/api/badge/repositories/15287" alt="QwenLM%2Fqwen-code | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
+---
 
-**The open-source AI coding agent that lives in your terminal.**
+## 什么是 Qwen-NoHuman？
 
-<a href="https://qwenlm.github.io/qwen-code-docs/zh/users/overview">中文</a> |
-<a href="https://qwenlm.github.io/qwen-code-docs/de/users/overview">Deutsch</a> |
-<a href="https://qwenlm.github.io/qwen-code-docs/fr/users/overview">français</a> |
-<a href="https://qwenlm.github.io/qwen-code-docs/ja/users/overview">日本語</a> |
-<a href="https://qwenlm.github.io/qwen-code-docs/ru/users/overview">Русский</a> |
-<a href="https://qwenlm.github.io/qwen-code-docs/pt-BR/users/overview">Português (Brasil)</a>
+Qwen-NoHuman 是 Qwen Code 的 **自主维护版本**，在上游基础上增加了：
 
-</div>
+- **下班模式 (NoHuman Mode)** — 自主质量迭代、批量 bug 修复、代码审查，无需人工干预
+- **热补丁系统** — 9 个已验证的 fork 热补丁（审批模式绕过、Windows 编码适配、容器路由等）
+- **上游 Issue 追踪修复** — 主动监控上游 issue，逐 issue 分析根因并推送修复
 
-## Why Qwen Code?
+## NoHuman 主要特点
 
-- **Agentic out of the box** — Auto-Memory, Auto-Skills, SubAgents, Agent Teams, and MCP. Dynamic workflows, zero setup.
-- **Open-source, inside and out** — The framework and the Qwen models are open-source. They evolve together. No vendor lock-in.
-- **Multi-protocol** — Supports OpenAI, Anthropic, Gemini, and Qwen APIs. Any third-party provider or local model (Ollama / vLLM). Switch at runtime.
-- **Beyond the terminal** — IDE plugins, Desktop app, daemon mode, SDKs, and IM bots (Telegram / DingTalk / WeChat / Feishu).
+| 特点                | 说明                                                  |
+| ------------------- | ----------------------------------------------------- |
+| **自主质量迭代**    | `/btw 下班了` 激活，自动执行 lint→test→fix 循环       |
+| **批量 Issue 修复** | 从上游 issue 列表自动获取、分析根因、建分支修复、推送 |
+| **Swarm 并行审查**  | 4 Agent 并行安全/性能/健壮性/可维护性审查             |
+| **TDD 硬门禁**      | Red→Green→Refactor 三步法强制执行                     |
+| **容器优先工作流**  | 所有代码操作通过 SSH 容器执行，隔离本地环境           |
+| **自动提交**        | 修复完成后自动 commit+push，无需手动操作              |
 
-> [!TIP]
-> Qwen Code is actively iterating on itself — using its own agent and models to file issues, submit PRs, review code, and run tests. Powered by the community, driven by AI.
+---
 
-## Installation
+## Dev 分支修补记录
 
-**Linux / macOS:**
+### 2026-06-20
 
-```bash
-curl -fsSL https://qwen-code-assets.oss-cn-hangzhou.aliyuncs.com/installation/install-qwen-standalone.sh | bash
-```
+| Issue                                                    | 类型     | 说明                                                              | 分支                                  |
+| -------------------------------------------------------- | -------- | ----------------------------------------------------------------- | ------------------------------------- |
+| [#5199](https://github.com/QwenLM/qwen-code/issues/5199) | bug      | React error #185 — useEffect cleanup 中 setState 导致组件卸载异常 | `fix/aspnmy-agent-cli-issue-5199-...` |
+| [#5142](https://github.com/QwenLM/qwen-code/issues/5142) | bug      | VP 模式初始渲染时历史不可见                                       | `fix/aspnmy-agent-cli-issue-5142-...` |
+| [#5102](https://github.com/QwenLM/qwen-code/issues/5102) | security | 非交互 yolo 模式下 shell 输出重定向绕过权限合约                   | `fix/aspnmy-agent-cli-issue-5102-...` |
+| [#5083](https://github.com/QwenLM/qwen-code/issues/5083) | bug      | 长会话僵尸进程导致 TUI 冻结                                       | `fix/aspnmy-agent-cli-issue-5083-...` |
 
-**Windows:**
+### 历史修补
 
-```powershell
-irm https://qwen-code-assets.oss-cn-hangzhou.aliyuncs.com/installation/install-qwen-standalone.ps1 | iex
-```
+| Issue                                                    | 类型 | 说明                                             | 分支                                  |
+| -------------------------------------------------------- | ---- | ------------------------------------------------ | ------------------------------------- |
+| [#5410](https://github.com/QwenLM/qwen-code/issues/5410) | bug  | QQ Bot 无限重试 — reconnectAttempts 递增防死循环 | `fix/aspnmy-agent-cli-issue-5410-...` |
+| [#5422](https://github.com/QwenLM/qwen-code/issues/5422) | bug  | 死字段 `updatedMCPToolOutput` 删除               | `fix/aspnmy-agent-cli-issue-5422-...` |
+| [#5019](https://github.com/QwenLM/qwen-code/issues/5019) | bug  | (已合入 dev)                                     | `fix/aspnmy-agent-cli-issue-5019`     |
+| [#4177](https://github.com/QwenLM/qwen-code/issues/4177) | bug  | (已合入 dev)                                     | `fix/aspnmy-agent-cli-issue-4177`     |
 
-> Restart your terminal after installation to ensure environment variables take effect.
+---
 
-<details>
-<summary>NPM / Homebrew</summary>
+## 安装
 
-**NPM** (requires [Node.js 22+](https://nodejs.org/)):
-
-```bash
-npm install -g @qwen-code/qwen-code@latest
-```
-
-**Homebrew** (macOS / Linux):
+### 从 Release 下载 (推荐)
 
 ```bash
-brew install qwen-code
+# Linux x64 standalone
+curl -LO https://github.com/aspnmy/qwen-code/releases/latest/download/qwen-nohuman-linux-x64.tar.gz
+tar -xzf qwen-nohuman-linux-x64.tar.gz
+sudo cp qwen-nohuman /usr/local/bin/
 ```
 
-</details>
-
-## Quick Start
+### 从源码构建
 
 ```bash
-qwen          # Launch interactive terminal UI
-# Inside the session:
-/auth         # Configure your provider and API key
+git clone https://github.com/aspnmy/qwen-code.git
+cd qwen-code
+git checkout dev
+npm ci
+npm run build
+npm run bundle
+node scripts/prepare-package.js
+npm install -g ./dist
 ```
 
-See the [Authentication Guide](https://qwenlm.github.io/qwen-code-docs/en/users/configuration/auth/) and [Settings Reference](https://qwenlm.github.io/qwen-code-docs/en/users/configuration/settings/) for detailed setup.
+---
 
-![Qwen Code](https://img.alicdn.com/imgextra/i2/O1CN01K0nwj41RM1Il8kB0t_!!6000000002096-2-tps-1544-1060.png)
+## 使用
 
-## How to Use Qwen Code
+```bash
+# 进入下班模式（自主质量迭代）
+qwen-code
+> /btw 下班了
 
-| Mode            | Command         | Use Case                                                                                                                                                                                                                                        |
-| --------------- | --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Interactive** | `qwen`          | Terminal UI with rich rendering, `@file` references, slash commands                                                                                                                                                                             |
-| **Headless**    | `qwen -p "..."` | Scripts, CI/CD, batch processing — no UI                                                                                                                                                                                                        |
-| **IDE**         | —               | [VS Code](https://qwenlm.github.io/qwen-code-docs/en/users/integration-vscode/), [Zed](https://qwenlm.github.io/qwen-code-docs/en/users/integration-zed/), [JetBrains](https://qwenlm.github.io/qwen-code-docs/en/users/integration-jetbrains/) |
-| **Desktop**     | —               | [Qwen Code Desktop](https://github.com/QwenLM/qwen-code/releases/tag/desktop-latest) — GUI for macOS, Windows, Linux                                                                                                                            |
-| **Daemon**      | `qwen serve`    | Shared agent session over HTTP+SSE (ACP). Multiple clients, one agent. _(experimental)_ [Docs](https://qwenlm.github.io/qwen-code-docs/en/users/qwen-serve)                                                                                     |
-| **SDK**         | —               | [TypeScript](./packages/sdk-typescript/README.md), [Python](./packages/sdk-python/README.md), [Java](./packages/sdk-java/qwencode/README.md)                                                                                                    |
-| **IM Bot**      | `qwen channel`  | Connect to Telegram, DingTalk, WeChat, or Feishu                                                                                                                                                                                                |
+# 恢复正常模式
+> /btw 上班了
 
-<details>
-<summary>SDK example (Python)</summary>
-
-```python
-import asyncio
-
-from qwen_code_sdk import is_sdk_result_message, query
-
-
-async def main() -> None:
-    result = query(
-        "Summarize the repository layout.",
-        {
-            "cwd": "/path/to/project",
-            "path_to_qwen_executable": "qwen",
-        },
-    )
-
-    async for message in result:
-        if is_sdk_result_message(message):
-            print(message["result"])
-
-
-asyncio.run(main())
+# 批量修复上游 issue
+qwen-code -p "下班模式 恢复对up仓库的issue的fix"
 ```
 
-</details>
+---
 
-## Capabilities
+## 与上游的关系
 
-If you know Claude Code, you already know Qwen Code — and then some. We've put significant effort into [bringing Qwen Code to feature parity with Claude Code](https://github.com/wenshao/codeagents/blob/main/docs/comparison/qwen-code-improvement-report.md), improving both breadth and reliability across the board.
+- **上游**: [QwenLM/qwen-code](https://github.com/QwenLM/qwen-code) — 官方版本，npm 包名 `@qwen-code/qwen-code`
+- **Fork**: [aspnmy/qwen-code](https://github.com/aspnmy/qwen-code) — dev 分支为 Qwen-NoHuman 独立版本线
+- 定期从上游 main 同步，仅合入业务代码（不含 workflow/docs 差异）
+- 热补丁不向上游提交（属于 fork 专属配置）
 
-| Feature                                                            | Qwen Code | Claude Code |
-| ------------------------------------------------------------------ | :-------: | :---------: |
-| SubAgents, Agent Teams, Dynamic Workflows                          |     ✓     |      ✓      |
-| Auto-Memory, Auto-Skills, Hooks                                    |     ✓     |      ✓      |
-| Built-in Skills (/review, /batch, /loop, /bugfix…)                 |     ✓     |      ✓      |
-| MCP, Plan Mode, LSP Integration                                    |     ✓     |      ✓      |
-| Auto Mode, Sandbox, Git Worktrees                                  |     ✓     |      ✓      |
-| Computer Use (desktop automation)                                  |     ✓     |      ✓      |
-| IDE Plugins (VS Code / JetBrains / Zed)                            |     ✓     |      ✓      |
-| SDK                                                                |     ✓     |      ✓      |
-| Headless Mode, Session Management                                  |     ✓     |      ✓      |
-| Open-source — model and framework                                  |     ✓     |      —      |
-| Multi-protocol (OpenAI / Anthropic / Gemini / Qwen + any provider) |     ✓     |      —      |
-| Agent Arena (multi-model head-to-head on same task)                |     ✓     |      —      |
-| Daemon Mode — `qwen serve` (multi-client shared agent)             |     ✓     |      —      |
-| IM Channels (Telegram / DingTalk / WeChat / Feishu)                |     ✓     |      —      |
+---
 
-## Ecosystem
+## License
 
-- [**Qwen Code Desktop**](https://github.com/QwenLM/qwen-code/releases/tag/desktop-latest) — Official desktop app for macOS, Windows, and Linux
-- [**AionUi**](https://github.com/iOfficeAI/AionUi) — A modern GUI for command-line AI tools including Qwen Code
-- [**Gemini CLI Desktop**](https://github.com/Piebald-AI/gemini-cli-desktop) — A cross-platform desktop/web/mobile UI for Qwen Code
-
-- [**🦞 Qwen Code Claw**](https://github.com/openclaw/acpx) — Let other agents (Claude, Codex, etc.) delegate coding tasks to Qwen Code via ACP. Paste this prompt into your agent:
-
-```text
-Use Qwen Code as a coding agent. First, fetch and read this skill reference:
-https://raw.githubusercontent.com/QwenLM/qwen-code/refs/heads/main/.qwen/skills/qwen-code-claw/SKILL.md
-Then follow the instructions inside to install, authenticate, and use Qwen Code via acpx for all coding tasks.
-```
-
-## Contributing
-
-Contributions are welcome! See [CONTRIBUTING.md](./CONTRIBUTING.md) for guidelines.
-
-## Acknowledgments
-
-This project was originally based on [Google Gemini CLI](https://github.com/google-gemini/gemini-cli) v0.8.2. We gratefully acknowledge the Gemini CLI team's excellent work. Starting from Qwen Code v0.1, we stopped syncing with upstream and began independent development as a multi-protocol, multi-platform agent framework with deep integrations for Qwen models and beyond.
+Apache-2.0 — 与上游一致

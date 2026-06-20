@@ -1,6 +1,6 @@
 {
   "name": "@qwen-code/qwen-code",
-  "version": "0.18.3",
+  "version": "0.0.1",
   "engines": {
     "node": ">=22.0.0"
   },
@@ -166,5 +166,6 @@
     "*.{json,md}": [
       "prettier --write"
     ]
-  }
+  },
+  "displayName": "Qwen-NoHuman"
 }

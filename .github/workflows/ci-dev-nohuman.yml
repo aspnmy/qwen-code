@@ -1,0 +1,204 @@
+# .github/workflows/ci-dev-nohuman.yml
+# Dev 分支专属构建与发布 — Qwen-NoHuman 版本线
+
+name: 'Qwen-NoHuman Dev Build & Release'
+
+on:
+  push:
+    branches:
+      - 'dev'
+  workflow_dispatch:
+    inputs:
+      version_bump:
+        description: 'Version bump type (patch/minor/major — overrides auto-increment)'
+        required: false
+        default: ''
+        type: 'string'
+
+concurrency:
+  group: '${{ github.workflow }}-${{ github.ref }}'
+  cancel-in-progress: true
+
+permissions:
+  contents: 'write'
+  actions: 'read'
+
+defaults:
+  run:
+    shell: 'bash'
+
+jobs:
+  #
+  # 版本号计算
+  #
+  version:
+    name: 'Compute NoHuman Version'
+    runs-on: 'ubuntu-latest'
+    outputs:
+      tag: '${{ steps.compute.outputs.tag }}'
+      version: '${{ steps.compute.outputs.version }}'
+    steps:
+      - name: 'Checkout'
+        uses: 'actions/checkout@v4'
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: 'Compute version'
+        id: 'compute'
+        run: |
+          # 查找最新的 Qwen-NoHuman 标签
+          LATEST_TAG=$(git tag -l 'Qwen-NoHuman-v*' --sort=-v:refname | head -1)
+          if [ -z "$LATEST_TAG" ]; then
+            MAJOR=0
+            MINOR=0
+            PATCH=1
+          else
+            # 从标签提取版本号
+            TAG_NUM=$(echo "$LATEST_TAG" | sed 's/Qwen-NoHuman-v//')
+            IFS='.' read -r MAJOR MINOR PATCH <<< "$TAG_NUM"
+            # 自增 patch
+            if [ "${{ inputs.version_bump }}" = "minor" ]; then
+              MINOR=$((MINOR + 1))
+              PATCH=0
+            elif [ "${{ inputs.version_bump }}" = "major" ]; then
+              MAJOR=$((MAJOR + 1))
+              MINOR=0
+              PATCH=0
+            else
+              PATCH=$((PATCH + 1))
+            fi
+          fi
+
+          VERSION="${MAJOR}.${MINOR}.${PATCH}"
+          TAG="Qwen-NoHuman-v${VERSION}"
+
+          echo "Previous tag: ${LATEST_TAG:-none}"
+          echo "New version: ${VERSION}"
+          echo "New tag: ${TAG}"
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "tag=${TAG}" >> $GITHUB_OUTPUT
+
+  #
+  # 构建 & 测试
+  #
+  build:
+    name: 'Build & Test (ubuntu-latest, Node 22)'
+    needs: 'version'
+    runs-on: 'ubuntu-latest'
+    env:
+      NOHUMAN_VERSION: '${{ needs.version.outputs.version }}'
+    steps:
+      - name: 'Checkout'
+        uses: 'actions/checkout@v4'
+
+      - name: 'Set up Node.js 22.x'
+        uses: 'actions/setup-node@v4'
+        with:
+          node-version: '22.x'
+          cache: 'npm'
+
+      - name: 'Install dependencies'
+        run: 'npm ci --prefer-offline --no-audit --progress=false'
+
+      - name: 'Set NoHuman version'
+        run: |
+          node -e "
+            const pkg = require('./package.json');
+            pkg.version = process.env.NOHUMAN_VERSION;
+            pkg.displayName = 'Qwen-NoHuman';
+            require('fs').writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
+          "
+          echo "Package version set to: $(node -p 'require(\"./package.json\").version')"
+
+      - name: 'Build'
+        run: 'npm run build'
+
+      - name: 'Run tests'
+        run: 'npm run test:ci'
+        env:
+          NO_COLOR: 'true'
+
+      - name: 'Bundle CLI'
+        run: 'npm run bundle'
+
+      #
+      # 打包 standalone（仅 Linux x64 — 其他平台按需扩展）
+      #
+      - name: 'Build standalone package (linux-x64)'
+        run: |
+          node scripts/build-standalone-release.js --target=linux-x64 --version=${{ needs.version.outputs.version }}
+
+      - name: 'Upload standalone artifact'
+        uses: 'actions/upload-artifact@v4'
+        with:
+          name: 'qwen-nohuman-linux-x64'
+          path: 'release/*.tar.*'
+          retention-days: 30
+
+      #
+      # 打包 npm 目录（用于本地 Windows npm install）
+      #
+      - name: 'Prepare npm package'
+        run: |
+          mkdir -p dist-npm
+          node scripts/prepare-package.js
+          cp -r dist/* dist-npm/ 2>/dev/null || true
+          # 备选：直接打包 dist 目录
+          tar -czf dist-npm/qwen-nohuman-npm-bundle.tar.gz dist/
+
+      - name: 'Upload npm bundle artifact'
+        uses: 'actions/upload-artifact@v4'
+        with:
+          name: 'qwen-nohuman-npm-bundle'
+          path: 'dist-npm/qwen-nohuman-npm-bundle.tar.gz'
+          retention-days: 30
+
+  #
+  # 发布 GitHub Release
+  #
+  release:
+    name: 'Create GitHub Release'
+    needs: ['version', 'build']
+    runs-on: 'ubuntu-latest'
+    permissions:
+      contents: 'write'
+    steps:
+      - name: 'Download artifacts'
+        uses: 'actions/download-artifact@v4'
+        with:
+          path: 'artifacts'
+
+      - name: 'Create Release'
+        uses: 'softprops/action-gh-release@v2'
+        with:
+          tag_name: '${{ needs.version.outputs.tag }}'
+          name: 'Qwen-NoHuman ${{ needs.version.outputs.version }}'
+          body: |
+            # Qwen-NoHuman v${{ needs.version.outputs.version }}
+
+            ## Dev 分支独立版本
+
+            基于上游 `QwenLM/qwen-code` 的 fork 维护版本，包含以下补丁：
+
+            ### 本次修复 (#${{ github.run_number }})
+            - 详见 dev 分支 README 和 commit history
+
+            ### 安装
+            ```bash
+            # 下载 standalone 包直接运行
+            tar -xzf qwen-nohuman-linux-x64.tar.gz
+            ./qwen-nohuman --help
+
+            # 或从 npm bundle 安装
+            tar -xzf qwen-nohuman-npm-bundle.tar.gz
+            npm install -g ./dist
+            ```
+
+            ### 关联
+            - 上游: [QwenLM/qwen-code](https://github.com/QwenLM/qwen-code)
+            - Fork: [aspnmy/qwen-code](https://github.com/aspnmy/qwen-code) (dev 分支)
+          draft: false
+          prerelease: false
+          files: |
+            artifacts/**/*

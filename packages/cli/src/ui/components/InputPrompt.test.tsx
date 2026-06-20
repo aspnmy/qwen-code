@@ -818,6 +818,13 @@ describe('InputPrompt', () => {
       // some Tab consumer is true (e.g. streaming starts while autocomplete
       // is open), AppContainer would otherwise keep blocking Windows Tab
       // approval-mode cycling for the entire streaming window.
+      //
+      // NOTE: The cleanup that called onTabConsumerChange(false) on unmount
+      // was removed (#5199) because calling setState on a parent context
+      // provider during effect cleanup triggers React error #185 when both
+      // child and provider unmount in the same commit phase. The unmount
+      // signal is no longer emitted — the parent's hasTabConsumer will
+      // naturally be cleaned up when AppContainer resets its state.
       mockedUseCommandCompletion.mockReturnValue({
         ...mockCommandCompletion,
         showSuggestions: true,
@@ -837,8 +844,8 @@ describe('InputPrompt', () => {
       expect(onTabConsumerChange).toHaveBeenLastCalledWith(true);
 
       unmount();
-      // Last call after unmount must be false — the cleanup function fires.
-      expect(onTabConsumerChange).toHaveBeenLastCalledWith(false);
+      // onTabConsumerChange(false) is no longer called on unmount (#5199).
+      // Verify unmount doesn't crash.
     });
   });
 

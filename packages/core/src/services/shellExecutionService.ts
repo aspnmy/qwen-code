@@ -1216,8 +1216,10 @@ export class ShellExecutionService {
           // long-running sessions (>10h), accumulated pipe handles
           // from exited children can starve the event loop and cause
           // TUI freezes even though the child process is reaped.
-          child.stdout?.destroy();
-          child.stderr?.destroy();
+          // Optional-chaining on the call itself — test mocks have
+          // stdout/stderr objects without a destroy method.
+          child.stdout?.destroy?.();
+          child.stderr?.destroy?.();
 
           const finalBuffer = Buffer.concat(outputChunks);
 

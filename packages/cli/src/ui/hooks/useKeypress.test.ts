@@ -312,3 +312,101 @@ describe('useKeypress', () => {
     });
   });
 });
+
+describe('IME composition detection (#5966)', () => {
+  it('sets isComposing for rapid ASCII keystrokes', () => {
+    const onKeypress = vi.fn();
+    renderHook(() => useKeypress(onKeypress, { isActive: true }), { wrapper });
+
+    // Simulate a single ASCII keystroke (potential IME start)
+    act(() => {
+      stdin.emit('keypress', null, {
+        name: '',
+        ctrl: false,
+        meta: false,
+        shift: false,
+        sequence: 'n',
+      });
+    });
+
+    // The keypress should have isComposing: true
+    expect(onKeypress).toHaveBeenCalled();
+    const call = onKeypress.mock.calls[0][0];
+    expect(call.isComposing).toBe(true);
+    expect(call.sequence).toBe('n');
+  });
+
+  it('suppresses Enter during composition', () => {
+    const onKeypress = vi.fn();
+    renderHook(() => useKeypress(onKeypress, { isActive: true }), { wrapper });
+
+    // Start composition
+    act(() => {
+      stdin.emit('keypress', null, {
+        name: '',
+        ctrl: false,
+        meta: false,
+        shift: false,
+        sequence: 'n',
+      });
+    });
+    onKeypress.mockClear();
+
+    // Enter during composition should be suppressed
+    act(() => {
+      stdin.emit('keypress', null, {
+        name: 'return',
+        ctrl: false,
+        meta: false,
+        shift: false,
+        sequence: '\r',
+      });
+    });
+    expect(onKeypress).not.toHaveBeenCalled();
+  });
+
+  it('suppresses Escape during composition', () => {
+    const onKeypress = vi.fn();
+    renderHook(() => useKeypress(onKeypress, { isActive: true }), { wrapper });
+
+    act(() => {
+      stdin.emit('keypress', null, {
+        name: '',
+        ctrl: false,
+        meta: false,
+        shift: false,
+        sequence: 'n',
+      });
+    });
+    onKeypress.mockClear();
+
+    act(() => {
+      stdin.emit('keypress', null, {
+        name: 'escape',
+        ctrl: false,
+        meta: false,
+        shift: false,
+        sequence: '\x1b',
+      });
+    });
+    expect(onKeypress).not.toHaveBeenCalled();
+  });
+
+  it('allows normal typing when not composing', () => {
+    const onKeypress = vi.fn();
+    renderHook(() => useKeypress(onKeypress, { isActive: true }), { wrapper });
+
+    // Enter outside composition should be processed normally
+    act(() => {
+      stdin.emit('keypress', null, {
+        name: 'return',
+        ctrl: false,
+        meta: false,
+        shift: false,
+        sequence: '\r',
+      });
+    });
+    expect(onKeypress).toHaveBeenCalled();
+    expect(onKeypress.mock.calls[0][0].isComposing).toBeFalsy();
+  });
+});

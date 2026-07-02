@@ -113,6 +113,7 @@ const KITTY_KEYPAD_FUNCTIONAL_KEYCODE_TO_NAME: Record<number, string> = {
 };
 
 export interface Key {
+  isComposing?: boolean;
   name: string;
   ctrl: boolean;
   meta: boolean;
@@ -127,6 +128,7 @@ export type KeypressHandler = (key: Key) => void;
 export type MouseHandler = (event: SgrMouseEvent) => void;
 
 interface KeypressContextValue {
+  isComposing: boolean;
   subscribe: (handler: KeypressHandler) => void;
   unsubscribe: (handler: KeypressHandler) => void;
   subscribeMouse: (handler: MouseHandler) => void;
@@ -167,6 +169,7 @@ export function KeypressProvider({
   const { stdin, setRawMode } = useStdin();
   const subscribers = useRef<Set<KeypressHandler>>(new Set()).current;
   const mouseSubscribers = useRef<Set<MouseHandler>>(new Set()).current;
+  const composingRef = useRef(false);
 
   const subscribe = useCallback(
     (handler: KeypressHandler) => {
@@ -221,6 +224,8 @@ export function KeypressProvider({
     let pasteIdleTimeout: NodeJS.Timeout | null = null;
     const kittySequenceBufferRef = { current: '' };
     let kittySequenceTimeout: NodeJS.Timeout | null = null;
+    let compositionTimeout: NodeJS.Timeout | null = null;
+
     let backslashTimeout: NodeJS.Timeout | null = null;
     let waitingForEnterAfterBackslash = false;
     let rawDataBuffer = Buffer.alloc(0);
@@ -697,14 +702,25 @@ export function KeypressProvider({
       };
     };
 
+    const clearCompositionTimer = () => {
+      if (compositionTimeout) {
+        clearTimeout(compositionTimeout);
+        compositionTimeout = null;
+      }
+    };
+
+    const flushComposition = () => {
+      composingRef.current = false;
+      clearCompositionTimer();
+    };
+
     const broadcast = (key: Key) => {
-      // Mark interaction so background housekeeping can defer work when the
-      // user is actively typing. Pre-filters above (DA1/DA2/Kitty queries,
-      // FOCUS_IN/OUT) early-return before reaching broadcast, so terminal
-      // protocol noise does not count as user activity.
       noteInteraction();
+      const finalKey: Key = composingRef.current
+        ? { ...key, isComposing: true }
+        : key;
       for (const handler of subscribers) {
-        handler(key);
+        handler(finalKey);
       }
     };
 
@@ -812,6 +828,7 @@ export function KeypressProvider({
           );
         }
         clearKittyBufferAndTimeout();
+        clearCompositionTimer();
         if (key.sequence === `${ESC}${KITTY_CTRL_C}`) {
           broadcast({
             name: 'c',
@@ -931,6 +948,55 @@ export function KeypressProvider({
 
       // Ctrl+C is handled earlier, above the paste-state branches, so
       // that it remains an escape hatch even when paste mode is stuck.
+
+      // IME composition detection
+      if (
+        !key.ctrl &&
+        !key.meta &&
+        key.name === '' &&
+        key.sequence.length === 1 &&
+        key.sequence.charCodeAt(0) < 128 &&
+        !key.paste
+      ) {
+        composingRef.current = true;
+        clearCompositionTimer();
+        compositionTimeout = setTimeout(() => {
+          flushComposition();
+        }, 100);
+        broadcast({ ...key, isComposing: true });
+        return;
+      }
+
+      // Multi-byte UTF-8 printable (IME composed output)
+      if (!key.ctrl && !key.meta && key.sequence.length >= 2 && !key.paste) {
+        const cp = key.sequence.codePointAt(0) || 0;
+        if (cp > 127) {
+          flushComposition();
+        }
+      }
+
+      // During composition, suppress action keys
+      if (composingRef.current) {
+        if (
+          key.name === 'return' ||
+          key.name === 'escape' ||
+          key.name === 'tab' ||
+          key.name === 'backspace'
+        ) {
+          return;
+        }
+        if (
+          key.name === '' &&
+          key.sequence.length === 1 &&
+          !key.ctrl &&
+          !key.meta
+        ) {
+          const code = key.sequence.charCodeAt(0);
+          if (code >= 48 && code <= 57) {
+            return;
+          }
+        }
+      }
 
       if (kittyProtocolEnabled) {
         if (
@@ -1326,6 +1392,9 @@ export function KeypressProvider({
         subscribeMouse,
         unsubscribeMouse,
         pasteWorkaround,
+        get isComposing() {
+          return composingRef.current;
+        },
       }}
     >
       {children}

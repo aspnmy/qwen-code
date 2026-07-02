@@ -211,6 +211,14 @@ export const BaseTextInput = ({
         return;
       }
 
+      // During IME composition, suppress all action keys and let the
+      // character pass through to the buffer. Enter/Escape/Tab/Backspace
+      // during composition are handled by the IME, not the application.
+      if (key.isComposing) {
+        buffer.handleInput(key);
+        return;
+      }
+
       if (keyMatchers[Command.TOGGLE_RENDER_MODE](key)) {
         return;
       }
